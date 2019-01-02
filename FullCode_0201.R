@@ -8,7 +8,6 @@ require(dplyr)
 library("magrittr")
 
 
-
 df.station <- read.csv("station.csv", header=TRUE, sep=",")
 df.trip <- read.csv("trip.csv", header=TRUE, sep=",")
 
@@ -20,14 +19,7 @@ df.trip$stoptime <- as.POSIXct(strptime(x = as.character(df.trip$stoptime),
                                         format = "%m/%d/%Y %H:%M"))
 
 first = df.trip %>% summarise(sort(starttime)[1])
-
 last = df.trip %>% summarise(sort(stoptime)[50791])
-
-
-# library(RCurl)
-# x <- getURL("https://raw.github.com/aronlindberg/latent_growth_classes/master/LGC_data.csv")
-# y <- read.csv(text = x)shiny
-
 
 hav.dist <- function(long1, lat1, long2, lat2) {
   R <- 6371
@@ -50,12 +42,13 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
                           fluidPage(
                             titlePanel("Station - Analysis"),
                             sidebarLayout(
-                              sidebarPanel("our inputs will go here", 
-                                           sliderInput("numberInput", "Number", min = 1, max = 58,
-                                                       value = c(10), pre = "nr "),
-                                           radioButtons("typeInput", "Product type",
-                                                        choices = c("Male", "Female"),
-                                                        selected = "Male")),
+                              sidebarPanel(
+                                           selectInput("stationInput", "Select Station",
+                                                       choices = unique(df.station$name),
+                                                       selected = "3rd Ave & Broad St"
+                                           ),
+                                           sliderInput("distInput", "Distance", min = 10, max = 500,
+                                                       value = c(100), pre = "M ")),
                               mainPanel(br(), br(),
                                         leafletOutput("firstExample", height=700, width = 700))))),
                  tabPanel("TRIPS", 
@@ -65,7 +58,7 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
                                                     , min = format(first,"%Y-%m-%d"), max= format(last,"%Y-%m-%d")
                                                     ,format = "yyyy-mm-dd", startview="month"
                                           ),
-
+                                          
                                           sliderInput("hour", "Hour:", min=0, max=23, value=0, step = 1),
                                           radioButtons("station", "Direction",
                                                        choices = c("Start Station", "End Station"),
@@ -82,10 +75,6 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
                             tabPanel("DATASET", dataTableOutput("mytable1")),
                             "----",
                             tabPanel("ABOUT US")
-                            
-                            
-                            #Third example
-                            #tabPanel()
                  )
                  
                  
@@ -94,57 +83,66 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
 
 server <- function(input, output) {
   
- 
+#### REACTIVE VARAIBELS ####################  
   numOfStation <- reactive({
     df.station[sample(nrow(df.station),input$numberInput[1]), ] })
   
+  startStation <- reactive({
+    df.station %>%
+        filter(df.station$name == input$stationInput)
+    })
 
+  nearStation <- reactive({
+    selLat = startStation()$lat
+    selLong = startStation()$long
+    for (i in 1:58) {
+    df.station$dist[i] = hav.dist(selLong, selLat, df.station$long[i], df.station$lat[i])
+    } 
+    df.station %>%
+      filter(df.station$dist <= input$distInput)
+  })
   
   # tmp.df <- reactive ({df.trip[format(starttime,"%Y-%m-%d")==input$date]})
-  # print(df.trip[format(df.trip$starttime,"%Y-%m-%d")==input$date][1])
-  # filteredData <- reactive({df.trip[format(df.trip$starttime,"%Y-%m-%d")==input$date]})
+  # tmp.df <- df.station[sample(nrow(df.station), 10), ]
 
-  
-      #tmp.df <- df.station[sample(nrow(df.station), 10), ]
-  
-  #distt <- hav.dist(long1, lat1, long2, lat2)
+#### OUTOUT TO STATION TABSET ####################  
   
   output$firstExample <- renderLeaflet({
     
-    
-    leaflet(numOfStation()) %>%
-      #Here is where tiles providers live
+    leaflet(nearStation()) %>% #numOfStation()) %>%
       addTiles(group="OSM") %>%#OSM is default tile providor
       addProviderTiles(providers$Stamen.TonerLite) %>%
-      #addProviderTiles(providers$Thunderforest.TransportDark) %>%
-      #This is Seattle
       setView(
         lng=-122.335167,
         lat=47.608013,
         zoom=12
       ) %>%
-      #Adding airbnb houses
       addMarkers(~long, ~lat, popup=~htmlEscape(name))
-    #Group of Layers
   })
+
+#### OUTOUT TO TRIP TABSET ####################  
   
   output$secondExample <- renderLeaflet({
-
+    
     observeEvent(input$secondExample_marker_click, {
       click <- input$secondExample_marker_click
     })
-
-    #Temporary dataframe
     
+    filtered <- reactive({
+      df.trip %>%
+        filter(format(df.trip$starttime,"%Y-%m-%d") == input$date) %>%
+        group_by(from_station_id) %>%
+        summarize(n_trips = n())
+      
+    })
     
-    #leaflet
+    tmp.df <- reactive({
+      left_join(filtered(), df.station, by = c("from_station_id" = "station_id"))
+    })
+    
     leaflet(tmp.df()) %>%
-      #Here is where tiles providers live
       addTiles(group="OSM") %>%#OSM is default tile providor
       addProviderTiles(providers$CartoDB.Positron) %>%
-      #addProviderTiles(providers$Stamen.TonerLite) %>%
-      #addProviderTiles(providers$Esri.WorldImagery) %>%
-      #This is Seattle
       setView(
         lng=-122.335167,
         lat=47.608013,
@@ -153,23 +151,14 @@ server <- function(input, output) {
       addCircleMarkers(lng = ~long, lat = ~lat, weight = 1,label=~name,
                        radius = ~n_trips)
   })
-
-  filtered <- reactive({
-    df.trip %>%
-      filter(format(df.trip$starttime,"%Y-%m-%d") == input$date) %>%
-      group_by(from_station_id) %>%
-      summarize(n_trips = n())
-    
-  })
   
-  tmp.df <- reactive({
-    left_join(filtered(), df.station, by = c("from_station_id" = "station_id"))
-  })
+#### OUTOUT TO DATA FRAME ####################  
   
+# YOU CAN USE IT TO LOOK INTO YOUR DATA, PUT WHATEVER DF YOU NEED, CHECK WHETHER YOU CORRECTLY FILTERED DATA OR NEW COLUMN HAS PROPER VALUES AND SO ON
   
   output$mytable1 = renderDataTable({
-    # df.trip 
-    tmp.df()
+     #df.trip
+    nearStation()
   }, options = list(aLengthMenu = c(5, 35, 50), iDisplayLength = 8))
   
 }
