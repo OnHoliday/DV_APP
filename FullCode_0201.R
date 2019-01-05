@@ -43,12 +43,18 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
                             titlePanel("Station - Analysis"),
                             sidebarLayout(
                               sidebarPanel(
-                                           selectInput("stationInput", "Select Station",
+                                           radioButtons("stat_choice", "What do you want to check",
+                                                      choices = c("Near station", "Distance"),
+                                                      selected = "Near station"),
+                                           selectInput("stationInput", "Select Start Station",
                                                        choices = unique(df.station$name),
                                                        selected = "3rd Ave & Broad St"
                                            ),
+                                           selectInput("stationInput2", "Select End Station",
+                                                       choices = unique(df.station$name)
+                                           ),
                                            sliderInput("distInput", "Distance", min = 10, max = 500,
-                                                       value = c(100), pre = "M ")),
+                                                       value = c(20), pre = "M ")),
                               mainPanel(br(), br(),
                                         leafletOutput("firstExample", height=700, width = 700))))),
                  tabPanel("TRIPS", 
@@ -92,6 +98,11 @@ server <- function(input, output) {
         filter(df.station$name == input$stationInput)
     })
 
+  stopStation <- reactive({
+    df.station %>%
+      filter(df.station$name == input$stationInput2)
+  })
+  
   nearStation <- reactive({
     selLat = startStation()$lat
     selLong = startStation()$long
@@ -102,25 +113,99 @@ server <- function(input, output) {
       filter(df.station$dist <= input$distInput)
   })
   
+  dist <- reactive({
+    paste(toString(floor(hav.dist( startStation()$long, startStation()$lat, stopStation()$long, stopStation()$lat))), " meters")
+  })
+  
+  tripStaton <- reactive({
+    selLat1 = startStation()$lat
+    selLong1 = startStation()$long
+    selLat2 = stopStation()$lat
+    selLong2 = stopStation()$long
+    for (i in 1:58) {
+      df.station$dist[i] = hav.dist(selLong1, selLat1, df.station$long[i], df.station$lat[i])
+    } 
+    df.station %>%
+      filter(df.station$dist <= input$distInput)
+    
+  })
+  
+  selected <- reactive({
+    if (toString(input$stat_choice)=="Near station") {
+      return(TRUE)
+    } else {
+      return(FALSE)
+    }
+  })
+  
   # tmp.df <- reactive ({df.trip[format(starttime,"%Y-%m-%d")==input$date]})
   # tmp.df <- df.station[sample(nrow(df.station), 10), ]
 
 #### OUTOUT TO STATION TABSET ####################  
-  
-  output$firstExample <- renderLeaflet({
+
     
-    leaflet(nearStation()) %>% #numOfStation()) %>%
-      addTiles(group="OSM") %>%#OSM is default tile providor
-      addProviderTiles(providers$Stamen.TonerLite) %>%
-      setView(
-        lng=-122.335167,
-        lat=47.608013,
-        zoom=12
-      ) %>%
-      addMarkers(~long, ~lat, popup=~htmlEscape(name))
+  output$firstExample <- renderLeaflet({
+
+    # observeEvent(input$secondExample_marker_click, {
+    #   click <- input$secondExample_marker_click
+    # })
+
+      if (selected() == FALSE) {
+        leaflet(tripStaton()) %>% #numOfStation()) %>%
+          addTiles(group="OSM") %>%#OSM is default tile providor
+          addProviderTiles(providers$Stamen.TonerLite) %>%
+          setView(
+            lng=-122.335167,
+            lat=47.608013,
+            zoom=12
+          ) %>%
+        addMarkers(startStation()$long, startStation()$lat) %>%
+          addMarkers(stopStation()$long, stopStation()$lat) %>%
+        addPolylines(lng = c(startStation()$long, stopStation()$long), lat = c(startStation()$lat, stopStation()$lat), layerId = NULL, color = "#03F", weight = 5, opacity = 0.5, fill = FALSE, fillColor = "#03F",
+                     fillOpacity = 0.2, popup=dist())
+        
+      } else {
+        leaflet(tripStaton()) %>% #numOfStation()) %>%
+          addTiles(group="OSM") %>%#OSM is default tile providor
+          addProviderTiles(providers$Stamen.TonerLite) %>%
+          setView(
+            lng=-122.335167,
+            lat=47.608013,
+            zoom=12
+          ) %>%
+        addMarkers(~long, ~lat, popup=~htmlEscape(name))
+        
+
+        
+        
+
+      }
+
+ # %>%
+
+    # addRectangles(
+    #   lng1=startStation()$long, lat1=startStation()$lat,
+    #   lng2=stopStation()$long, lat2=stopStation()$lat,
+    #   fillColor = "transparent")
   })
+  
+  # output$firstExample <- renderLeaflet({
+  #   
+  #   leaflet(nearStation()) %>% #numOfStation()) %>%
+  #     addTiles(group="OSM") %>%#OSM is default tile providor
+  #     addProviderTiles(providers$Stamen.TonerLite) %>%
+  #     setView(
+  #       lng=-122.335167,
+  #       lat=47.608013,
+  #       zoom=12
+  #     ) %>%
+  #     addMarkers(~long, ~lat, popup=~htmlEscape(name))
+  # 
+  # })
 
 #### OUTOUT TO TRIP TABSET ####################  
+  
+  
   
   output$secondExample <- renderLeaflet({
     
