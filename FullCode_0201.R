@@ -6,27 +6,24 @@ library(shinythemes)
 library(shinydashboard)
 require(dplyr)
 library("magrittr")
-#library(data.table)
 
 
-df.station <- read.csv("station.csv", header=TRUE, sep=",")
-df.trip <- read.csv("trip.csv", header=TRUE, sep=",")
+df.station <- read.csv("dane/station.csv", header=TRUE, sep=",")
+df.trip <- read.csv("dane/trip.csv", header=TRUE, sep=",")
 
 #df <- left_join(df.trip,df.station, by = c("from_station_id"="station_id")
 
-df.trip$starttime <-  as.Date(df.trip$starttime,
-                                         format = "%m/%d/%Y")
-df.trip$stoptime <- as.Date(df.trip$stoptime,
-                            format = "%m/%d/%Y")
-
-first = df.trip %>% summarise(sort(starttime)[1])
-last = df.trip %>% summarise(sort(stoptime)[50791])
+df.trip$starttime <-  as.Date(df.trip$starttime, format = "%m/%d/%Y")
+df.trip$stoptime <- as.Date(df.trip$stoptime, format = "%m/%d/%Y")
+df.trip$starttime2 <- as.POSIXct(strptime(x = as.character(df.trip$starttime),format = "%m/%d/%Y %H:%M"))	
+df.trip$stoptime2 <- as.POSIXct(strptime(x = as.character(df.trip$stoptime),format = "%m/%d/%Y %H:%M"))
 
 df.trip$starttime_weekend <- ifelse(is.element(weekdays(df.trip$starttime, abbreviate = FALSE), c("Saturday","Sunday")), "Weekend", "Weekday")
 df.trip$stoptime_weekend <- ifelse(is.element(weekdays(df.trip$stoptime, abbreviate = FALSE), c("Saturday","Sunday")), "Weekend", "Weekday")
 
 
-df.trip$ones <- 1
+first = df.trip %>% summarise(sort(starttime)[1])
+last = df.trip %>% summarise(sort(stoptime)[50791])
 
 hav.dist <- function(long1, lat1, long2, lat2) {
   R <- 6371
@@ -43,66 +40,95 @@ hav.dist <- function(long1, lat1, long2, lat2) {
 ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer = 'AAA', collapsible = TRUE, fluid = TRUE,
                  theme = shinytheme("slate"),
                  tabPanel("HOMEPAGE",
-                          #includeCSS("styles.css"),
-                          headerPanel("New Application")),
-                 tabPanel("STATIONS",
-                          fluidPage(
-                            titlePanel("Station - Analysis"),
-                            sidebarLayout(
-                              sidebarPanel(
-                                           radioButtons("stat_choice", "What do you want to check",
-                                                      choices = c("Near station", "Distance"),
-                                                      selected = "Near station"),
-                                           selectInput("stationInput", "Select Start Station",
-                                                       choices = unique(df.station$name),
-                                                       selected = "3rd Ave & Broad St"
-                                           ),
-                                           selectInput("stationInput2", "Select End Station",
-                                                       choices = unique(df.station$name)
-                                           ),
-                                           sliderInput("distInput", "Distance", min = 10, max = 500,
-                                                       value = c(20), pre = "M ")),
-                              mainPanel(br(), br(),
-                                        leafletOutput("firstExample", height=700, width = 700))))),
-                 tabPanel("TRIPS", 
-                          sidebarLayout(position = "right",
-                                        sidebarPanel(
-                                          
-                                          radioButtons("Day",
-                                                       label = "Select between days:",
-                                                       choices = c("Alldays","Weekday", "Weekend"),
-                                                       selected = "Alldays"),
-                                        
-                                          checkboxInput("specificday", "Select a specific Date"),
-                                        
-                                          conditionalPanel(
-                                            condition = "input.specificday != false",
-                                            
-                                          dateInput("date", "Choose a date:", value = format(first,"%Y-%m-%d")
-                                                    , min = format(first,"%Y-%m-%d"), max= format(last,"%Y-%m-%d")
-                                                    ,format = "yyyy-mm-dd", startview="month"
-                                          ),
-                                          
-                                          sliderInput("hour", "Hour:", min=0, max=23, value=0, step = 1)
-                                         # ,
-                                          # radioButtons("station", "Direction",
-                                          #              choices = c("Start Station", "End Station"),
-                                          #              selected = "Start Station")
-                                         )
-                                          ),
-                                          
-                                        mainPanel(
-                                          leafletOutput("secondExample", height=700)
-                                        )
-                          )
+                          br(), br(),br(), 
+                          titlePanel("New Cool Awesome Amazing Application"),
+                          
+                          headerPanel(
+                            list(tags$head(tags$style()), 
+                                 HTML('<img src="ofo-smart-city.png", height="600px", style="float:left"/>')
+                            )),
+                          tags$div(
+                            tags$h1("CHECK OUT THE NEWSET POSSIBLE FEATURE")), 
+                          tags$h2("PREPARE TO BE AMAZED !!!!"),
+                          
+                          
+                          tags$a(href="www.github.com", tags$h4("Looking for a source code clik here!"))
                  ),
-                 tabPanel("ANLYSIS"),
+                 navbarMenu("CUSTOMER",
+                            tabPanel("STATIONS",
+                                     fluidPage(br(), br(),br(),
+                                               titlePanel("Station - Analysis"),
+                                               
+                                               sidebarLayout(
+                                                 # br(), br(),br(),br(), br(),br(),br(), br(),br(), 'a',
+                                                 sidebarPanel(
+                                                   
+                                                   # "Here you can see sth",
+                                                   radioButtons("stat_choice", "What do you want to check",
+                                                                choices = c("Near station", "Distance"),
+                                                                selected = "Near station"),
+                                                   selectInput("stationInputA", "Select Start Station",
+                                                               choices = unique(df.station$name)
+                                                   ),
+                                                   conditionalPanel(
+                                                     condition = "input.stat_choice != 'Near station'",
+                                                     
+                                                     selectInput("stationInputB", "Select End Station",
+                                                                 choices = unique(df.station$name)
+                                                     )
+                                                   ),
+                                                   conditionalPanel(
+                                                     condition = "input.stat_choice != 'Distance'",
+                                                     sliderInput("distInput", "Stations within Distance", min = 10, max = 500,
+                                                                 value = c(20), pre = "M ")
+                                                   )),
+                                                 
+                                                 mainPanel(
+                                                   leafletOutput("firstExample", height=700, width = 700)))
+                                     )),
+                            tabPanel("TRIPS",br(), br(),br(), 
+                                     sidebarLayout(position = "right",
+                                                   sidebarPanel(
+                                                     
+                                                     radioButtons("Day",
+                                                                  label = "Select between days:",
+                                                                  choices = c("Alldays","Weekday", "Weekend"),
+                                                                  selected = "Alldays"),
+                                                     
+                                                     checkboxInput("specificday", "Select a specific Date"),
+                                                     
+                                                     conditionalPanel(
+                                                       condition = "input.specificday != false",
+                                                       
+                                                       dateInput("date", "Choose a date:", value = format(first,"%Y-%m-%d")
+                                                                 , min = format(first,"%Y-%m-%d"), max= format(last,"%Y-%m-%d")
+                                                                 ,format = "yyyy-mm-dd", startview="month"
+                                                       ),
+                                                       
+                                                       sliderInput("hour", "Hour:", min=0, max=23, value=0, step = 1)
+                                                       # ,
+                                                       # radioButtons("station", "Direction",
+                                                       #              choices = c("Start Station", "End Station"),
+                                                       #              selected = "Start Station")
+                                                     )
+                                                   ),
+                                                   
+                                                   mainPanel(
+                                                     leafletOutput("secondExample", height=700)
+                                                   )
+                                     )
+                            )),
+                 navbarMenu("COMPANY",
+                            tabPanel("ANLYSIS-WHETHER",br(), br(),br()),
+                            "----",
+                            tabPanel("ANALYSIS-CHARTS",br(), br(),br())
+                 ),
                  navbarMenu("MORE",
-                            tabPanel("SUMMARY"),
+                            tabPanel("SUMMARY",br(), br(),br()),
                             "----",
-                            tabPanel("DATASET", dataTableOutput("mytable1")),
+                            tabPanel("DATASET",br(), br(),br(), dataTableOutput("mytable1")),
                             "----",
-                            tabPanel("ABOUT US")
+                            tabPanel("ABOUT US",br(), br(),br())
                  )
                  
                  
@@ -111,25 +137,25 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
 
 server <- function(input, output) {
   
-#### REACTIVE VARAIBELS ####################  
+  #### REACTIVE VARAIBELS ####################  
   numOfStation <- reactive({
     df.station[sample(nrow(df.station),input$numberInput[1]), ] })
   
   startStation <- reactive({
     df.station %>%
-        filter(df.station$name == input$stationInput)
-    })
-
+      filter(df.station$name == input$stationInputA)
+  })
+  
   stopStation <- reactive({
     df.station %>%
-      filter(df.station$name == input$stationInput2)
+      filter(df.station$name == input$stationInputB)
   })
   
   nearStation <- reactive({
     selLat = startStation()$lat
     selLong = startStation()$long
     for (i in 1:58) {
-    df.station$dist[i] = hav.dist(selLong, selLat, df.station$long[i], df.station$lat[i])
+      df.station$dist[i] = hav.dist(selLong, selLat, df.station$long[i], df.station$lat[i])
     } 
     df.station %>%
       filter(df.station$dist <= input$distInput)
@@ -162,46 +188,46 @@ server <- function(input, output) {
   
   
   filtered <- reactive({
-     if (toString(input$specificday) == 'FALSE') {
-       if (input$Day == "Alldays"){
-         
-         var <- length(unique(df.trip$starttime))
-         
-         df.trip %>%
-           filter()%>%
-           group_by(from_station_id) %>%
-           summarize(n_trips = n()/var)
-       }
-
-       else if (input$Day == "Weekend"){
-         
-         
-         tempdf <- df.trip
-         
-         tempdf <- tempdf[tempdf$starttime_weekend == "Weekend", ]
-         
-         var <- length(unique(tempdf$starttime))
-         
-          df.trip %>%
-            filter(df.trip$starttime_weekend == "Weekend") %>%
-            group_by(from_station_id) %>%
-            summarize(n_trips = n()/var)
-       }
-    else if (input$Day == "Weekday"){
+    if (toString(input$specificday) == 'FALSE') {
+      if (input$Day == "Alldays"){
+        
+        var <- length(unique(df.trip$starttime))
+        
+        df.trip %>%
+          filter()%>%
+          group_by(from_station_id) %>%
+          summarize(n_trips = n()/var)
+      }
       
-      
-      tempdf <- df.trip
-      
-      tempdf <- tempdf[tempdf$starttime_weekend == "Weekday", ]
-      
-      var <- length(unique(tempdf$starttime))
-      
-      df.trip %>%
-        filter(df.trip$starttime_weekend == "Weekday") %>%
-        group_by(from_station_id) %>%
-        summarize(n_trips = n()/var)
+      else if (input$Day == "Weekend"){
+        
+        
+        tempdf <- df.trip
+        
+        tempdf <- tempdf[tempdf$starttime_weekend == "Weekend", ]
+        
+        var <- length(unique(tempdf$starttime))
+        
+        df.trip %>%
+          filter(df.trip$starttime_weekend == "Weekend") %>%
+          group_by(from_station_id) %>%
+          summarize(n_trips = n()/var)
+      }
+      else if (input$Day == "Weekday"){
+        
+        
+        tempdf <- df.trip
+        
+        tempdf <- tempdf[tempdf$starttime_weekend == "Weekday", ]
+        
+        var <- length(unique(tempdf$starttime))
+        
+        df.trip %>%
+          filter(df.trip$starttime_weekend == "Weekday") %>%
+          group_by(from_station_id) %>%
+          summarize(n_trips = n()/var)
+      }
     }
-   }
     
     
     else {
@@ -210,54 +236,50 @@ server <- function(input, output) {
         group_by(from_station_id) %>%
         summarize(n_trips = n())
     }
-
+    
     
   })
+  
   # tmp.df <- reactive ({df.trip[format(starttime,"%Y-%m-%d")==input$date]})
   # tmp.df <- df.station[sample(nrow(df.station), 10), ]
-
-#### OUTOUT TO STATION TABSET ####################  
-
-    
+  
+  #### OUTOUT TO STATION TABSET ####################  
+  
+  
   output$firstExample <- renderLeaflet({
-
+    
     # observeEvent(input$secondExample_marker_click, {
     #   click <- input$secondExample_marker_click
     # })
-
-      if (selected() == FALSE) {
-        leaflet(tripStaton()) %>% #numOfStation()) %>%
-          addTiles(group="OSM") %>%#OSM is default tile providor
-          addProviderTiles(providers$Stamen.TonerLite) %>%
-          setView(
-            lng=-122.335167,
-            lat=47.608013,
-            zoom=12
-          ) %>%
+    
+    if (selected() == FALSE) {
+      leaflet(tripStaton()) %>% #numOfStation()) %>%
+        addTiles(group="OSM") %>%#OSM is default tile providor
+        addProviderTiles(providers$Stamen.TonerLite) %>%
+        setView(
+          lng=-122.335167,
+          lat=47.619113,
+          zoom=12.46
+        ) %>%
         addMarkers(startStation()$long, startStation()$lat) %>%
-          addMarkers(stopStation()$long, stopStation()$lat) %>%
+        addMarkers(stopStation()$long, stopStation()$lat) %>%
         addPolylines(lng = c(startStation()$long, stopStation()$long), lat = c(startStation()$lat, stopStation()$lat), layerId = NULL, color = "#03F", weight = 5, opacity = 0.5, fill = FALSE, fillColor = "#03F",
                      fillOpacity = 0.2, popup=dist())
-        
-      } else {
-        leaflet(tripStaton()) %>% #numOfStation()) %>%
-          addTiles(group="OSM") %>%#OSM is default tile providor
-          addProviderTiles(providers$Stamen.TonerLite) %>%
-          setView(
-            lng=-122.335167,
-            lat=47.608013,
-            zoom=12
-          ) %>%
+      
+    } else {
+      leaflet(tripStaton()) %>% #numOfStation()) %>%
+        addTiles(group="OSM") %>%#OSM is default tile providor
+        addProviderTiles(providers$Stamen.TonerLite) %>%
+        setView(
+          lng=-122.335167,
+          lat=47.619113,
+          zoom=12.46
+        ) %>%
         addMarkers(~long, ~lat, popup=~htmlEscape(name))
-        
-
-        
-        
-
-      }
-
- # %>%
-
+    }
+    
+    # %>%
+    
     # addRectangles(
     #   lng1=startStation()$long, lat1=startStation()$lat,
     #   lng2=stopStation()$long, lat2=stopStation()$lat,
@@ -277,16 +299,12 @@ server <- function(input, output) {
   #     addMarkers(~long, ~lat, popup=~htmlEscape(name))
   # 
   # })
-
-#### OUTOUT TO TRIP TABSET ####################  
+  
+  #### OUTOUT TO TRIP TABSET ####################  
   
   
   
   output$secondExample <- renderLeaflet({
-    
-    observeEvent(input$secondExample_marker_click, {
-      click <- input$secondExample_marker_click
-    })
     
     tmp.df <- reactive({
       left_join(filtered(), df.station, by = c("from_station_id" = "station_id"))
@@ -304,14 +322,14 @@ server <- function(input, output) {
                        radius = ~n_trips)
   })
   
-#### OUTOUT TO DATA FRAME ####################  
+  #### OUTOUT TO DATA FRAME ####################  
   
-# YOU CAN USE IT TO LOOK INTO YOUR DATA, PUT WHATEVER DF YOU NEED, CHECK WHETHER YOU CORRECTLY FILTERED DATA OR NEW COLUMN HAS PROPER VALUES AND SO ON
+  # YOU CAN USE IT TO LOOK INTO YOUR DATA, PUT WHATEVER DF YOU NEED, CHECK WHETHER YOU CORRECTLY FILTERED DATA OR NEW COLUMN HAS PROPER VALUES AND SO ON
   
   output$mytable1 = renderDataTable({
-     #df.trip
-    filtered()
-  }, options = list(aLengthMenu = c(5, 35, 50), iDisplayLength = 8))
+    #df.trip
+    nearStation()
+  }, options = list(aLengthMenu = c(5, 10, 15), iDisplayLength = 8))
   
 }
 
