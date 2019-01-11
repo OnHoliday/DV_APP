@@ -105,11 +105,12 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
                                                                  ,format = "yyyy-mm-dd", startview="month"
                                                        ),
                                                        
-                                                       sliderInput("hour", "Hour:", min=0, max=23, value=0, step = 1)
-                                                       # ,
-                                                       # radioButtons("station", "Direction",
-                                                       #              choices = c("Start Station", "End Station"),
-                                                       #              selected = "Start Station")
+                                                       sliderInput("hour", "Hour:", min=0, max=23, value=0, step = 1),
+                                                       
+                                                       ,
+                                                       radioButtons("station", "Direction",
+                                                                    choices = c("Start Station", "End Station"),
+                                                                    selected = "Start Station")
                                                      )
                                                    ),
                                                    
@@ -186,6 +187,15 @@ server <- function(input, output) {
     }
   })
   
+  from_to <- reactive({
+    if (toString(input$station)=="Start Station") {
+      return(TRUE)
+    } else {
+      return(FALSE)
+    }
+  })
+  
+  date <- reactive({input$date})
   
   filtered <- reactive({
     if (toString(input$specificday) == 'FALSE') {
@@ -196,7 +206,8 @@ server <- function(input, output) {
         df.trip %>%
           filter()%>%
           group_by(from_station_id) %>%
-          summarize(n_trips = n()/var)
+          summarize(n_trips = n()/var) %>%
+        left_join(df.station, by = c("from_station_id" = "station_id"))
       }
       
       else if (input$Day == "Weekend"){
@@ -211,7 +222,8 @@ server <- function(input, output) {
         df.trip %>%
           filter(df.trip$starttime_weekend == "Weekend") %>%
           group_by(from_station_id) %>%
-          summarize(n_trips = n()/var)
+          summarize(n_trips = n()/var) %>%
+          left_join(df.station, by = c("from_station_id" = "station_id"))
       }
       else if (input$Day == "Weekday"){
         
@@ -225,17 +237,25 @@ server <- function(input, output) {
         df.trip %>%
           filter(df.trip$starttime_weekend == "Weekday") %>%
           group_by(from_station_id) %>%
-          summarize(n_trips = n()/var)
+          summarize(n_trips = n()/var) %>%
+          left_join(df.station, by = c("from_station_id" = "station_id"))
       }
     }
     
-    
     else {
-      df.trip %>%
-        filter(format(df.trip$starttime,"%Y-%m-%d") == input$date) %>%
-        group_by(from_station_id) %>%
-        summarize(n_trips = n())
-    }
+      if (from_to() == TRUE) {
+        df.trip %>%
+          filter(format(df.trip$starttime,"%Y-%m-%d") == date()) %>%
+          group_by(from_station_id) %>%
+          summarize(n_trips = n()) %>% 
+          left_join(df.station, by = c("from_station_id" = "station_id"))
+      } else {
+        df.trip %>% 
+          filter(format(df.trip$endtime,"%Y-%m-%d") == date()) %>%
+          group_by(to_station_id) %>%
+          summarize(n_trips = n()) %>% 
+          left_join(df.station, by = c("to_station_id" = "station_id"))
+    }}
     
     
   })
@@ -306,11 +326,8 @@ server <- function(input, output) {
   
   output$secondExample <- renderLeaflet({
     
-    tmp.df <- reactive({
-      left_join(filtered(), df.station, by = c("from_station_id" = "station_id"))
-    })
     
-    leaflet(tmp.df()) %>%
+    leaflet(filtered()) %>%
       addTiles(group="OSM") %>%#OSM is default tile providor
       addProviderTiles(providers$CartoDB.Positron) %>%
       setView(
