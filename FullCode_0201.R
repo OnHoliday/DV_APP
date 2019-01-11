@@ -43,18 +43,35 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
                             titlePanel("Station - Analysis"),
                             sidebarLayout(
                               sidebarPanel(
+                                            # "Here you can see sth",
                                            radioButtons("stat_choice", "What do you want to check",
                                                       choices = c("Near station", "Distance"),
                                                       selected = "Near station"),
-                                           selectInput("stationInput", "Select Start Station",
-                                                       choices = unique(df.station$name),
-                                                       selected = "3rd Ave & Broad St"
-                                           ),
-                                           selectInput("stationInput2", "Select End Station",
+                                           selectInput("stationInputA", "Select Start Station",
                                                        choices = unique(df.station$name)
                                            ),
-                                           sliderInput("distInput", "Distance", min = 10, max = 500,
-                                                       value = c(20), pre = "M ")),
+
+                                           
+                                           # checkboxInput("smooth", "Distance"),
+                                           conditionalPanel(
+                                             condition = "input.stat_choice != 'Near station'",
+
+                                             selectInput("stationInputB", "Select End Station",
+                                                         choices = unique(df.station$name)
+                                             )
+                                           ),
+                                           conditionalPanel(
+                                             condition = "input.stat_choice != 'Distance'",
+                                             sliderInput("distInput", "Stations within Distance", min = 10, max = 500,
+                                                         value = c(20), pre = "M ")
+                                             )
+                                           )
+                                           ,
+
+                                           # selectInput("stationInput2", "Select End Station",
+                                           #             choices = unique(df.station$name)
+                                           # ),
+
                               mainPanel(br(), br(),
                                         leafletOutput("firstExample", height=700, width = 700))))),
                  tabPanel("TRIPS", 
@@ -95,12 +112,12 @@ server <- function(input, output) {
   
   startStation <- reactive({
     df.station %>%
-        filter(df.station$name == input$stationInput)
+        filter(df.station$name == input$stationInputA)
     })
 
   stopStation <- reactive({
     df.station %>%
-      filter(df.station$name == input$stationInput2)
+      filter(df.station$name == input$stationInputB)
   })
   
   nearStation <- reactive({
