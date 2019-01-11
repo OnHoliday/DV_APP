@@ -8,8 +8,8 @@ require(dplyr)
 library("magrittr")
 
 
-df.station <- read.csv("station.csv", header=TRUE, sep=",")
-df.trip <- read.csv("trip.csv", header=TRUE, sep=",")
+df.station <- read.csv("dane/station.csv", header=TRUE, sep=",")
+df.trip <- read.csv("dane/trip.csv", header=TRUE, sep=",")
 
 #df <- left_join(df.trip,df.station, by = c("from_station_id"="station_id")
 
@@ -36,13 +36,29 @@ hav.dist <- function(long1, lat1, long2, lat2) {
 ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer = 'AAA', collapsible = TRUE, fluid = TRUE,
                  theme = shinytheme("slate"),
                  tabPanel("HOMEPAGE",
-                          #includeCSS("styles.css"),
-                          headerPanel("New Application")),
-                 tabPanel("STATIONS",
-                          fluidPage(
+                          br(), br(),br(), 
+                          titlePanel("New Cool Awesome Amazing Application"),
+
+                            headerPanel(
+                              list(tags$head(tags$style()), 
+                                   HTML('<img src="ofo-smart-city.png", height="600px", style="float:left"/>')
+                                   )),
+                          tags$div(
+                            tags$h1("CHECK OUT THE NEWSET POSSIBLE FEATURE")), 
+                            tags$h2("PREPARE TO BE AMAZED !!!!"),
+   
+                          
+                          tags$a(href="www.github.com", tags$h4("Looking for a source code clik here!"))
+                 ),
+                 navbarMenu("CUSTOMER",
+                  tabPanel("STATIONS",
+                          fluidPage(br(), br(),br(),
                             titlePanel("Station - Analysis"),
+                            
                             sidebarLayout(
+                              # br(), br(),br(),br(), br(),br(),br(), br(),br(), 'a',
                               sidebarPanel(
+                                
                                             # "Here you can see sth",
                                            radioButtons("stat_choice", "What do you want to check",
                                                       choices = c("Near station", "Distance"),
@@ -50,9 +66,6 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
                                            selectInput("stationInputA", "Select Start Station",
                                                        choices = unique(df.station$name)
                                            ),
-
-                                           
-                                           # checkboxInput("smooth", "Distance"),
                                            conditionalPanel(
                                              condition = "input.stat_choice != 'Near station'",
 
@@ -64,17 +77,12 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
                                              condition = "input.stat_choice != 'Distance'",
                                              sliderInput("distInput", "Stations within Distance", min = 10, max = 500,
                                                          value = c(20), pre = "M ")
-                                             )
-                                           )
-                                           ,
-
-                                           # selectInput("stationInput2", "Select End Station",
-                                           #             choices = unique(df.station$name)
-                                           # ),
-
-                              mainPanel(br(), br(),
-                                        leafletOutput("firstExample", height=700, width = 700))))),
-                 tabPanel("TRIPS", 
+                                             )),
+                            
+                              mainPanel(
+                                        leafletOutput("firstExample", height=700, width = 700)))
+                            )),
+                 tabPanel("TRIPS-1", br(), br(),br(),
                           sidebarLayout(position = "right",
                                         sidebarPanel(
                                           dateInput("date", "Choose a date:", value = format(first,"%Y-%m-%d")
@@ -90,14 +98,18 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
                                           leafletOutput("secondExample", height=700)
                                         )
                           )
-                 ),
-                 tabPanel("ANLYSIS"),
+                 )),
+                 navbarMenu("COMPANY",
+                            tabPanel("ANLYSIS-WHETHER",br(), br(),br()),
+                            "----",
+                            tabPanel("ANALYSIS-CHARTS",br(), br(),br())
+                            ),
                  navbarMenu("MORE",
-                            tabPanel("SUMMARY"),
+                            tabPanel("SUMMARY",br(), br(),br()),
                             "----",
-                            tabPanel("DATASET", dataTableOutput("mytable1")),
+                            tabPanel("DATASET",br(), br(),br(), dataTableOutput("mytable1")),
                             "----",
-                            tabPanel("ABOUT US")
+                            tabPanel("ABOUT US",br(), br(),br())
                  )
                  
                  
@@ -191,11 +203,6 @@ server <- function(input, output) {
             zoom=12
           ) %>%
         addMarkers(~long, ~lat, popup=~htmlEscape(name))
-        
-
-        
-        
-
       }
 
  # %>%
@@ -261,7 +268,7 @@ server <- function(input, output) {
   output$mytable1 = renderDataTable({
      #df.trip
     nearStation()
-  }, options = list(aLengthMenu = c(5, 35, 50), iDisplayLength = 8))
+  }, options = list(aLengthMenu = c(5, 10, 15), iDisplayLength = 8))
   
 }
 
