@@ -10,6 +10,7 @@ library("magrittr")
 
 df.station <- read.csv("dane/station.csv", header=TRUE, sep=",")
 df.trip <- read.csv("dane/trip.csv", header=TRUE, sep=",")
+df.weather <- read.csv("dane/weather.csv", header=TRUE, sep=",")
 
 #df <- left_join(df.trip,df.station, by = c("from_station_id"="station_id")
 
@@ -17,12 +18,12 @@ df.trip$starttime_hours <-  as.numeric(format(strptime(df.trip$starttime, "%m/%d
 df.trip$stoptime_hours <-  as.numeric(format(strptime(df.trip$stoptime, "%m/%d/%Y %H:%M"), "%H"))
 
 df.trip$start_daytime <- ifelse(df.trip$starttime_hours >= 4 & df.trip$starttime_hours < 11,"Morning",
-                          ifelse(df.trip$starttime_hours >= 11 & df.trip$starttime_hours < 17, "Afternoon", 
-                                 ifelse(df.trip$starttime_hours >= 17 & df.trip$starttime_hours < 22, "Evening", "Night")))
+                                ifelse(df.trip$starttime_hours >= 11 & df.trip$starttime_hours < 17, "Afternoon",
+                                       ifelse(df.trip$starttime_hours >= 17 & df.trip$starttime_hours < 22, "Evening", "Night")))
 
 
 df.trip$stop_daytime <- ifelse(df.trip$stoptime_hours >= 4 & df.trip$stoptime_hours < 11,"Morning",
-                               ifelse(df.trip$stoptime_hours >= 11 & df.trip$stoptime_hours < 17, "Afternoon", 
+                               ifelse(df.trip$stoptime_hours >= 11 & df.trip$stoptime_hours < 17, "Afternoon",
                                       ifelse(df.trip$stoptime_hours >= 17 & df.trip$stoptime_hours < 22, "Evening", "Night")))
 
 
@@ -32,6 +33,16 @@ df.trip$stoptime <- as.Date(df.trip$stoptime, format = "%m/%d/%Y")
 
 df.trip$starttime_weekend <- ifelse(is.element(weekdays(df.trip$starttime, abbreviate = FALSE), c("Saturday","Sunday")), "Weekend", "Weekday")
 df.trip$stoptime_weekend <- ifelse(is.element(weekdays(df.trip$stoptime, abbreviate = FALSE), c("Saturday","Sunday")), "Weekend", "Weekday")
+df.weather$Date <- as.Date(df.weather$Date, format = "%m/%d/%Y")
+
+trips_day <- df.trip %>%
+  group_by(starttime) %>%
+  summarize(count=n())%>%
+  left_join(df.weather, by = c("starttime" = "Date"))%>%
+  select(starttime,count,Mean_Temperature_F,Events)%>%
+  filter( Events %in% c("Rain",""))%>%
+  mutate(Rain = ifelse(Events == "", 0,1))
+
 
 
 first = df.trip %>% summarise(sort(starttime)[1])
@@ -149,8 +160,19 @@ ui <- navbarPage(title =  "CITY BIKE - Seattle", position = "fixed-top",  footer
                                      )),
                             "----",
                             
-                            tabPanel("ANLYSIS-WHETHER",br(), br(),br()),
-                            "----",
+                            tabPanel("ANLYSIS-WHETHER",br(), br(),br(),
+                                     sidebarLayout(position = "right",
+                                                   sidebarPanel(
+                                                     radioButtons("rain", "What kind of days do you want to inspect?",
+                                                                  choices = c("Rainy days", "Sunny days"),
+                                                                  selected = "Sunny days",inline = TRUE)
+                                                     
+                                                   ),
+                                                   mainPanel(
+                                                     plotOutput("plot")
+                                                   )
+                                     )),"----"
+                           ,
                             tabPanel("ANALYSIS-CHARTS",br(), br(),br())
                  ),
                  navbarMenu("MORE",
@@ -253,7 +275,7 @@ server <- function(input, output) {
       {return(df.trip)}}
     
   })
-
+  
   filtered <- reactive({
     if (toString(input$specificday) == 'FALSE') {
       
@@ -388,11 +410,21 @@ server <- function(input, output) {
   top5 <- reactive ({
     
     filtered() %>%
-        arrange(desc(n_trips)) %>%
-        head(5)
+      arrange(desc(n_trips)) %>%
+      head(5)
     
   })
   
+  
+  weather_trips <- reactive({
+    if (toString(input$rain) == "Sunny days")
+    {trips_day %>%
+        filter( Rain %in% c(0))}
+    else{
+      trips_day %>%
+        filter( Rain %in% c(1))
+    }
+  })
   
   # tmp.df <- reactive ({df.trip[format(starttime,"%Y-%m-%d")==input$date]})
   # tmp.df <- df.station[sample(nrow(df.station), 10), ]
@@ -482,9 +514,33 @@ server <- function(input, output) {
                                 rename(Station = name)%>%
                                 rename(Trips = n_trips), spacing = "xs")
   
+  
+  output$plot <- renderPlot({
+    ggplot(weather_trips(), aes(x=Mean_Temperature_F, y=count )) + geom_point(color="#30D5C8", size = 3)  + 
+      geom_rug(color="grey")+ labs( x= 'Mean Temperature in Fahrenheit', y= "Number of trips")+
+      theme_black()+
+      theme(plot.background = element_rect(color= "#272B31",fill = "#272B31"),
+            panel.border = element_rect(color = "#272B31"),
+            panel.background = element_rect(fill = '#272B31'),
+            panel.grid.major = element_line(colour = "#272B31", size=1.5),
+            panel.grid.minor = element_line(colour = "#272B31", 
+                                            size=.25, 
+                                            linetype = "dashed"),
+            #panel.border = element_blank(),
+            axis.line.x = element_line(colour = "#272B31", 
+                                       size=1.5, 
+                                       lineend = "butt"),
+            axis.line.y = element_line(colour = "#272B31", 
+                                       size=1.5),
+            axis.text = element_text(colour = "grey", face = "bold"),
+            axis.title.x = element_text(size=14, face="bold.italic"),
+            axis.title.y = element_text(size=14, face="bold.italic")
+            )
+    })
+  
   #### OUTOUT TO DATA FRAME ####################  
   
-  # YOU CAN USE IT TO LOOK INTO YOUR DATA, PUT WHATEVER DF YOU NEED, CHECK WHETHER YOU CORRECTLY FILTERED DATA OR NEW COLUMN HAS PROPER VALUES AND SO ON
+  # YOU CAN USE IT TO LOOK INTO YOUR DATA, PUT WHATEVER DF YOU NEED, CHECK WHETHER YOU CORRECTLY FILTERED DATA OR NEW COLUMN HAS PROPER VALUES AND SO fill = ON
   
   output$mytable1 = renderDataTable({
     #df.trip
@@ -494,3 +550,54 @@ server <- function(input, output) {
 }
 
 shinyApp(ui, server)
+
+
+
+#####ggplot theme_black#####
+
+library(gridExtra)
+
+theme_black = function(base_size = 12, base_family = "") {
+  
+  theme_grey(base_size = base_size, base_family = base_family) %+replace%
+    
+    theme(
+      # Specify axis options
+      axis.line = element_blank(),  
+      axis.text.x = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),  
+      axis.text.y = element_text(size = base_size*0.8, color = "white", lineheight = 0.9),  
+      axis.ticks = element_line(color = "white", size  =  0.2),  
+      axis.title.x = element_text(size = base_size, color = "white", margin = margin(0, 10, 0, 0)),  
+      axis.title.y = element_text(size = base_size, color = "white", angle = 90, margin = margin(0, 10, 0, 0)),  
+      axis.ticks.length = unit(0.3, "lines"),   
+      # Specify legend options
+      legend.background = element_rect(color = NA, fill = "black"),  
+      legend.key = element_rect(color = "white",  fill = "black"),  
+      legend.key.size = unit(1.2, "lines"),  
+      legend.key.height = NULL,  
+      legend.key.width = NULL,      
+      legend.text = element_text(size = base_size*0.8, color = "white"),  
+      legend.title = element_text(size = base_size*0.8, face = "bold", hjust = 0, color = "white"),  
+      legend.position = "right",  
+      legend.text.align = NULL,  
+      legend.title.align = NULL,  
+      legend.direction = "vertical",  
+      legend.box = NULL, 
+      # Specify panel options
+      panel.background = element_rect(fill = "black", color  =  NA),  
+      panel.border = element_rect(fill = NA, color = "white"),  
+      panel.grid.major = element_line(color = "grey35"),  
+      panel.grid.minor = element_line(color = "grey20"),  
+      panel.margin = unit(0.5, "lines"),   
+      # Specify facetting options
+      strip.background = element_rect(fill = "grey30", color = "grey10"),  
+      strip.text.x = element_text(size = base_size*0.8, color = "white"),  
+      strip.text.y = element_text(size = base_size*0.8, color = "white",angle = -90),  
+      # Specify plot options
+      plot.background = element_rect(color = "black", fill = "black"),  
+      plot.title = element_text(size = base_size*1.2, color = "white"),  
+      plot.margin = unit(rep(1, 4), "lines")
+      
+    )
+  
+}
